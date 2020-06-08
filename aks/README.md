@@ -4,25 +4,39 @@
 1. [Azure CLI installed](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest).
 1. Provision [a regional hub and spoke virtual networks](./secure-baseline/networking/network-deploy.azcli)
    > Note: execute this step from VSCode for a better experience
+1. Generate a CA self-signed cert
+
+> :warning: WARNING
+> Do not use the certificates created by these scripts for production. The certificates are provided for demonstration purposes only. For your production cluster, use your security best practices for digital certificates creation and lifetime management.
+> Self-signed certificates are not trusted by default and they can be difficult to maintain. Also, they may use outdated hash and cipher suites that may not be strong. For better security, purchase a certificate signed by a well-known certificate authority.
+
+### Cluster Certificate - AKS Internal Load Balancer
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+ -out traefik-ingress-internal-bicycle-contoso-com-tls.crt \
+ -keyout traefik-ingress-internal-bicycle-contoso-com-tls.key \
+ -subj "/CN=\*.bicycle.contoso.com/O=Contoso Bicycle"
+ROOT_CERT_WILCARD_BICYCLE_CONTOSO=\$(cat traefik-ingress-internal-bicycle-contoso-com-tls.crt | base64 -w 0)
+```
+
+### App Gateway Certificate
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+ -out appgw.crt \
+ -keyout appgw.key \
+ -subj "/CN=app.bicycle.contoso.com/O=Contoso Bicycle"
+openssl pkcs12 -export -out appgw.pfx -in appgw.crt -inkey appgw.key -passout pass:$PFX_PASSWORD
+APPGW_CERT_DATA=$(cat appgw.pfx | base64 -w 0)
+```
+
 1. create [the BU 0001's app team secure AKS cluster (ID: A0008)](./secure-baseline/cluster-deploy.azcli)
    > Note: execute this step from VSCode for a better experience
 1. Download the AKS credentails
    ```bash
    az aks get-credentials -g rg-bu0001a0008 -n <cluster-name> --admin
    ```
-
-### Generate a CA self-signed cert
-
-> :warning: WARNING
-> Do not use the certificates created by these scripts for production. The certificates are provided for demonstration purposes only. For your production cluster, use your security best practices for digital certificates creation and lifetime management.
-> Self-signed certificates are not trusted by default and they can be difficult to maintain. Also, they may use outdated hash and cipher suites that may not be strong. For better security, purchase a certificate signed by a well-known certificate authority.
-
-```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -out traefik-ingress-internal-bicycle-contoso-com-tls.crt \
-        -keyout traefik-ingress-internal-bicycle-contoso-com-tls.key \
-        -subj "/CN=*.bicycle.contoso.com/O=Contoso Bicycle"
-```
 
 ### Manually deploy the Ingress Controller and a basic workload
 
@@ -80,37 +94,16 @@ curl --insecure -k -I --resolve bu0001a0008-00.bicycle.contoso.com:443:10.240.4.
 exit 0
 ```
 
-### Configure Azure Application Gateway
-
-````bash
-# query the BU 0001's Azure Application Gateway Name
-export APP_GATEWAY_NAME=$(az deployment group show -g rg-bu0001a0008 -n cluster-stamp-bu0001a0008 --query properties.outputs.agwName.value -o tsv)
-
-# create the CA cer certificate
-cp traefik-ingress-internal-bicycle-contoso-com-tls.crt wildcard-bicycle-contoso-com-tls.cer
-
-# upload CA Cert to Azure Application Gateway
-az network application-gateway root-cert create \
-   -g rg-bu0001a0008 \
-   --gateway-name $APP_GATEWAY_NAME \
-   --name root-ca-wildcard-bicycle-contoso \
-   --cert-file wildcard-bicycle-contoso-com-tls.cer
-
-# configure Azure Application Gatweay default Http Setting to use the root cert uploadded above
-az network application-gateway http-settings update    \
-   -g rg-bu0001a0008 \
-   --gateway-name $APP_GATEWAY_NAME \
-   -n httpsettings-default \
-   --root-certs root-cert-wildcard-bicycle-contoso \
-   --protocol Https
-
 ### Test the web app
+
 ```bash
-# query the BU 0001's Azure Application Gateway Public Ip FQDN
-export APP_GATEWAY_PUBLIC_IP_FQDN=$(az deployment group show --resource-group rg-enterprise-networking-spokes -n spoke-BU0001A0008 --query properties.outputs.appGatewayPublicIpFqdn.value -o tsv)
+# query the BU 0001's Azure Application Gateway Public Ip
 
-# make a Http request through the Azure Application Gateway
-curl https://${APP_GATEWAY_PUBLIC_IP_FQDN}
-````
+export APPGW_PUBLIC_IP=$(az deployment group show --resource-group rg-enterprise-networking-spokes -n spoke-BU0001A0008 --query properties.outputs.appGwPublicIpAddress.value -o tsv)
+```
 
-> Note: alternatively open a browser and navite to http://${APP_GATEWAY_PUBLIC_IP_FQDN}
+1. Map the Azure Application Gateway public ip address to the application domain names. To do that, please open `C:\windows\system32\drivers\etc\hosts` and add the following records in local host file:
+   \${APPGW_PUBLIC_IP} app.bicycle.contoso.com
+
+1. In your browser navigate the site anyway (A warning will be present)
+   https://app.bicycle.contoso.com/

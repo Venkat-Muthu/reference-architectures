@@ -80,6 +80,27 @@ APP_ID=$(az ad sp create-for-rbac -n $APP_NAME --skip-assignment --query appId -
 APP_PASS=$(az ad sp credential reset --name $APP_NAME --credential-description "AKSClientSecret" --query password -o tsv)
 APP_TENANT_ID=$(az account show --query tenantId -o tsv)
 
+# Deploy RBAC for resources after AAD propagation
+until az ad sp show --id ${APP_ID} &> /dev/null ; do echo "Waiting for AAD propagation" && sleep 5; done
+
+#Roles on Cluster Vnet
+az role assignment create  --assignee $APP_ID --role 'Network Contributor' --scope $CLUSTER_VNET_RESOURCE_ID
+
+az role assignment create  --assignee $APP_ID --role 'User Access Administrator' --scope $CLUSTER_VNET_RESOURCE_ID
+
+#Roles on the NEW resource group for the AKS cluster
+RGNAMECLUSTER_RESOURCE_ID=$(az group show -n ${RGNAMECLUSTER} --query id -o tsv)
+
+az role assignment create  --assignee $APP_ID --role 'Contributor' --scope ${RGNAMECLUSTER_RESOURCE_ID}
+
+az role assignment create  --assignee $APP_ID --role 'User Access Administrator' --scope ${RGNAMECLUSTER_RESOURCE_ID}
+
+# Role on Cluster Vnet Resource Group (It is needed 'Microsoft.Resources/deployments/write'). 
+# We will use 'Network Contributor', but it can be reduced 
+RGNAMESPOKES_RESOURCE_ID=$(az group show -n ${RGNAMESPOKES} --query id -o tsv)
+
+az role assignment create  --assignee $APP_ID --role 'Network Contributor' --scope $RGNAMESPOKES_RESOURCE_ID
+
 cat << EOF
 
 NEXT STEPS
@@ -120,27 +141,6 @@ a. Contributor
 b. User Access Administrator
 
 EOF
-
-# Deploy RBAC for resources after AAD propagation
-until az ad sp show --id ${APP_ID} &> /dev/null ; do echo "Waiting for AAD propagation" && sleep 5; done
-
-#Roles on Cluster Vnet
-az role assignment create  --assignee $APP_ID --role 'Network Contributor' --scope $CLUSTER_VNET_RESOURCE_ID
-
-az role assignment create  --assignee $APP_ID --role 'User Access Administrator' --scope $CLUSTER_VNET_RESOURCE_ID
-
-#Roles on the NEW resource group for the AKS cluster
-RGNAMECLUSTER_RESOURCE_ID=$(az group show -n ${RGNAMECLUSTER} --query id -o tsv)
-
-az role assignment create  --assignee $APP_ID --role 'Contributor' --scope ${RGNAMECLUSTER_RESOURCE_ID}
-
-az role assignment create  --assignee $APP_ID --role 'User Access Administrator' --scope ${RGNAMECLUSTER_RESOURCE_ID}
-
-# Role on Cluster Vnet Resource Group (It is needed 'Microsoft.Resources/deployments/write'). 
-# We will use 'Network Contributor', but it can be reduced 
-RGNAMESPOKES_RESOURCE_ID=$(az group show -n ${RGNAMESPOKES} --query id -o tsv)
-
-az role assignment create  --assignee $APP_ID --role 'Network Contributor' --scope $RGNAMESPOKES_RESOURCE_ID
 
 
 

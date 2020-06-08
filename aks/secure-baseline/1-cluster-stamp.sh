@@ -43,7 +43,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -out traefik-ingress-internal-bicycle-contoso-com-tls.crt \
         -keyout traefik-ingress-internal-bicycle-contoso-com-tls.key \
         -subj "/CN=*.bicycle.contoso.com/O=Contoso Bicycle"
-AKS_BALANCER_CERT_DATA=$(cat traefik-ingress-internal-bicycle-contoso-com-tls.crt | base64 -w 0)
+ROOT_CERT_WILCARD_BICYCLE_CONTOSO=$(cat traefik-ingress-internal-bicycle-contoso-com-tls.crt | base64 -w 0)
 
 # App Gateway Certificate
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -63,7 +63,8 @@ az deployment group create --resource-group "${RGNAMECLUSTER}" --template-file "
                k8sRbacAadProfileTenantId=$k8sRbacAadProfileTenantId \
                keyvaultAclAllowedSubnetResourceIds="['$FIREWALL_SUBNET_RESOURCEID', '$GATEWAY_SUBNET_RESOURCE_ID']" \
                appGatewayCertificateData=$APPGW_CERT_DATA \
-               aksLoadBalancerData=$AKS_BALANCER_CERT_DATA
+               appGatewayCertificatePassword=$PFX_PASSWORD \
+               rootCertWildcardBicycleContoso=$ROOT_CERT_WILCARD_BICYCLE_CONTOSO 
 
 AKS_CLUSTER_NAME=$(az deployment group show -g $RGNAMECLUSTER -n cluster-0001 --query properties.outputs.aksClusterName.value -o tsv)
 
@@ -112,12 +113,12 @@ EOF
 kubectl apply -f ../workload/traefik.yaml
 kubectl apply -f ../workload/aspnetapp.yaml
 
-# the ASPNET Core webapp sample is all setup. Wait until is ready to process requests running:
+echo 'the ASPNET Core webapp sample is all setup. Wait until is ready to process requests running'
 kubectl wait --namespace a0008 \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/name=aspnetapp \
   --timeout=90s
-#you must see the EXTERNAL-IP 10.240.4.4, please wait till it is ready. It takes a couple of minutes, then cntr+c
+echo 'you must see the EXTERNAL-IP 10.240.4.4, please wait till it is ready. It takes a some minutes, then cntr+c'
 kubectl get svc -n traefik --watch  -n a0008  
 
 cat << EOF

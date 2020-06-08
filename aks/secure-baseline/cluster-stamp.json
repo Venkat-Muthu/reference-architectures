@@ -29,13 +29,19 @@
         "appGatewayCertificateData": {
             "type": "string",
             "metadata": {
-                "description": "Certificate data for gateway TLS"
+                "description": "Certificate data for gateway TLS. It is base64"
             }
         },
-        "aksLoadBalancerData": {
+        "appGatewayCertificatePassword": {
             "type": "string",
             "metadata": {
-                "description": "Certificate public data as trusted root certificates application gateway backend pool"
+                "description": "The certificate password"
+            }
+        },
+        "rootCertWildcardBicycleContoso": {
+            "type": "string",
+            "metadata": {
+                "description": "Certificate public data as trusted root certificates application gateway backend pool. It is base64"
             }
         },
         "location": {
@@ -173,7 +179,7 @@
                 "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName') )]"
             ],
             "properties": {
-                "value": "[parameters('aksLoadBalancerData')]",
+                "value": "[parameters('rootCertWildcardBicycleContoso')]",
                 "recoveryLevel": "Purgeable"
             }
         },
@@ -208,7 +214,7 @@
                     {
                         "name": "root-cert-wildcard-bicycle-contoso",
                         "properties": {
-                            "data": "[parameters('aksLoadBalancerData')]"
+                            "data": "[parameters('rootCertWildcardBicycleContoso')]"
                         }
                     }
                 ],
@@ -256,7 +262,7 @@
                         "name": "[concat(variables('agwName'), '-ssl-certificate')]",
                         "properties": {
                             "data": "[parameters('appGatewayCertificateData')]",
-                            "password": "contoso"
+                            "password": "[parameters('appGatewayCertificatePassword')]"
                         }
                     }
                 ],
