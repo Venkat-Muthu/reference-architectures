@@ -8,12 +8,6 @@
                 "description": "The hub networking which it is going to be peering"
             }
         },
-        "clusterLoadBalancerIpAddress": {
-            "type": "string",
-            "metadata": {
-                "description": "Internal cluster Load Balancer ip Address"
-            }
-        },
         "location": {
             "type": "string",
             "allowedValues": [
@@ -220,7 +214,7 @@
                         "ttl": 3600,
                         "aRecords": [
                             {
-                                "ipv4Address": "[parameters('clusterLoadBalancerIpAddress')]"
+                                "ipv4Address": "10.240.4.4"
                             }
                         ]
                     }
@@ -275,8 +269,8 @@
             "value": "[createArray(resourceId('Microsoft.Network/virtualNetworks/subnets', variables('clusterVNetName'), 'snet-applicationgateways'))]",
             "type": "array"
         },
-        "appGatewayPublicIpFqdn": {
-            "value": "[reference(resourceId('Microsoft.Network/publicIpAddresses',concat('pip-', variables('orgAppId'), '-00'))).dnsSettings.fqdn]",
+        "appGwPublicIpAddress": {
+            "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', concat('pip-', variables('orgAppId'), '-00'))).ipAddress]",
             "type": "string"
         }
     }
