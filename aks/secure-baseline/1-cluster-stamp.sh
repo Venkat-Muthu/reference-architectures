@@ -18,7 +18,7 @@ k8sRbacAadProfileTenantId=
 RGNAMESPOKES=
 tenant_guid=
 main_subscription=
-# User Parameters . Copy into the 1-cluster-stamp.sh". Take into a
+# User Parameters. Perhaps, you will need to scape ' on the password. The hay to scape is \'
 APP_ID=
 APP_PASS=
 APP_TENANT_ID=
@@ -28,7 +28,6 @@ APP_TENANT_ID=
 GEOREDUNDANCY_LOCATION=centralus
 
 APPGW_APP_URL=app.bicycle.contoso.com
-PFX_PASSWORD=contoso
 
 # Login with the service principal created with minimum privilege. It is a demo approach.
 # A real user with the correct privilege should login
@@ -50,7 +49,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -out appgw.crt \
         -keyout appgw.key \
         -subj "/CN=app.bicycle.contoso.com/O=Contoso Bicycle"
-openssl pkcs12 -export -out appgw.pfx -in appgw.crt -inkey appgw.key -passout pass:$PFX_PASSWORD
+openssl pkcs12 -export -out appgw.pfx -in appgw.crt -inkey appgw.key -passout pass:contoso
 APPGW_CERT_DATA=$(cat appgw.pfx | base64 -w 0)
 rm appgw.crt appgw.key appgw.pfx
 
@@ -63,7 +62,7 @@ az deployment group create --resource-group "${RGNAMECLUSTER}" --template-file "
                k8sRbacAadProfileTenantId=$k8sRbacAadProfileTenantId \
                keyvaultAclAllowedSubnetResourceIds="['$FIREWALL_SUBNET_RESOURCEID', '$GATEWAY_SUBNET_RESOURCE_ID']" \
                appGatewayCertificateData=$APPGW_CERT_DATA \
-               appGatewayCertificatePassword=$PFX_PASSWORD \
+               appGatewayCertificatePassword=contoso \
                rootCertWildcardBicycleContoso=$ROOT_CERT_WILCARD_BICYCLE_CONTOSO 
 
 AKS_CLUSTER_NAME=$(az deployment group show -g $RGNAMECLUSTER -n cluster-0001 --query properties.outputs.aksClusterName.value -o tsv)
@@ -109,6 +108,7 @@ data:
   tls.key: $(cat traefik-ingress-internal-bicycle-contoso-com-tls.key | base64 -w 0)
 type: kubernetes.io/tls
 EOF
+rm traefik-ingress-internal-bicycle-contoso-com-tls.crt traefik-ingress-internal-bicycle-contoso-com-tls.key
 
 kubectl apply -f ../workload/traefik.yaml
 kubectl apply -f ../workload/aspnetapp.yaml

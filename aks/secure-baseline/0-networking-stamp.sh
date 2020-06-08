@@ -118,7 +118,7 @@ k8sRbacAadProfileTenantId=${k8sRbacAadProfileTenantId}
 RGNAMESPOKES=${RGNAMESPOKES}
 tenant_guid=${tenant_guid}
 main_subscription=${main_subscription}
-# User Parameters . Copy into the 1-cluster-stamp.sh". Take into a
+# User Parameters. Perhaps, you will need to scape ' on the password. The hay to scape is \'  
 APP_ID=${APP_ID}
 APP_PASS=$'${APP_PASS}'
 APP_TENANT_ID=${APP_TENANT_ID}
